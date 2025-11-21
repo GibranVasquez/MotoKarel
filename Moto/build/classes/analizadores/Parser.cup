@@ -1,0 +1,72 @@
+package analizadores;
+
+parser code {:
+    // Configuración mejorada de manejo de errores
+    public void syntax_error(java_cup.runtime.Symbol cur_token) {
+        report_error("Error de sintaxis", cur_token);
+    }
+    
+    public void report_error(String message, Object info) {
+        StringBuilder m = new StringBuilder("Error: ");
+        if (info instanceof java_cup.runtime.Symbol) {
+            java_cup.runtime.Symbol s = (java_cup.runtime.Symbol) info;
+            m.append(" (línea ").append(s.left + 1)
+             .append(", col ").append(s.right + 1)
+             .append("): ");
+            
+            // Mensajes más descriptivos
+            switch(s.sym) {
+                case sym.NUMERO:
+                    m.append("Se esperaba un número después de ");
+                    break;
+                case sym.PUNTO_COMA:
+                    m.append("Falta punto y coma ';'");
+                    break;
+                case sym.LLAVE_DER:
+                    m.append("Falta llave de cierre '}'");
+                    break;
+                default:
+                    m.append(message);
+            }
+        }
+        throw new RuntimeException(m.toString());
+    }
+:};
+
+/* Terminales (consistentes con el Lexer) */
+terminal MOVER, GIRAR, REPETIR, SI;
+terminal DERECHA, IZQUIERDA, FRENTE_LIBRE, FRENTE_OBSTACULO;
+terminal PUNTO_COMA, LLAVE_IZQ, LLAVE_DER;
+terminal NUMERO, ERROR;
+
+/* No terminales */
+non terminal comandos;
+non terminal comando;
+non terminal condicion;
+non terminal direccion;
+
+/* Regla inicial */
+start with comandos;
+
+/* Gramática mejorada */
+comandos ::= comando PUNTO_COMA comandos
+            | /* vacío */
+            ;
+
+comando ::= MOVER NUMERO
+            {: /* Solo valida estructura, sin acción semántica */ :}
+          | GIRAR direccion
+            {: /* Validación pura */ :}
+          | REPETIR NUMERO LLAVE_IZQ comandos LLAVE_DER
+            {: /* Estructura de repetición */ :}
+          | SI condicion LLAVE_IZQ comandos LLAVE_DER
+            {: /* Condicional */ :}
+          ;
+
+condicion ::= FRENTE_LIBRE
+            | FRENTE_OBSTACULO
+            ;
+
+direccion ::= DERECHA
+            | IZQUIERDA
+            ;
