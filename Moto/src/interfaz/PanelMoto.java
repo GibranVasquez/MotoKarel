@@ -13,18 +13,16 @@ import java.util.function.Consumer;
 public class PanelMoto extends JPanel {
 
     private final int GRID = 40;
-    private final int COLS = 18;  // REDUCIDO: de 20 a 18 columnas
-    private final int ROWS = 17;  // REDUCIDO: de 20 a 17 filas
+    private final int COLS = 18;
+    private final int ROWS = 17;
 
-    // Posición inicial (0,0 abajo a la izquierda)
     private int col = 2;
     private int row = 2;
-    private int orient = 0;
+    private int orient = 1; // 1 = Derecha (eje X positivo)
 
     private double px = col * GRID;
     private double py = row * GRID;
 
-    // URLs alternativas para la moto
     private String[] motoURLs = {
         "https://s7g10.scene7.com/is/image/ktm/KTM-motocross-4-stroke-250-sxf-right-side-view?fmt=png-alpha&wid=1000&dpr=off"
     };
@@ -37,8 +35,8 @@ public class PanelMoto extends JPanel {
 
     private final Timer ticker;
     private Consumer<String> notifier;
+    private Consumer<List<String>> tripletsConsumer;
 
-    // Colores para mejor visualización
     private final Color GRID_COLOR = new Color(220, 220, 220);
     private final Color AXIS_COLOR = new Color(80, 80, 80);
     private final Color INFO_COLOR = new Color(0, 80, 160);
@@ -48,7 +46,7 @@ public class PanelMoto extends JPanel {
         setLayout(null);
         int marginLeft = 40;
         int marginBottom = 40;
-        int panelWidth = COLS * GRID + marginLeft + 140; // Más espacio para números y panel info
+        int panelWidth = COLS * GRID + marginLeft + 140;
         int panelHeight = ROWS * GRID + marginBottom + 40;
         setBounds(380, 10, panelWidth, panelHeight);
         setPreferredSize(new Dimension(panelWidth, panelHeight));
@@ -67,8 +65,11 @@ public class PanelMoto extends JPanel {
         });
     }
 
+    public void setTripletsConsumer(Consumer<List<String>> tripletsConsumer) {
+        this.tripletsConsumer = tripletsConsumer;
+    }
+
     private void loadSprites() {
-        // Cargar moto con URLs alternativas
         motoImg = loadImageFromURLs(motoURLs);
         
         if (motoImg == null) {
@@ -78,7 +79,6 @@ public class PanelMoto extends JPanel {
             System.out.println("Imagen de moto cargada correctamente");
         }
 
-        // Cargar otros sprites
         try { 
             treeImg = new ImageIcon(new URL("https://i.pinimg.com/736x/0c/d9/8c/0cd98c19e11c7a5221005a7675444e14.jpg")).getImage(); 
             treeImg = treeImg.getScaledInstance(GRID, GRID, Image.SCALE_SMOOTH);
@@ -122,16 +122,13 @@ public class PanelMoto extends JPanel {
         
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         
-        // Fondo transparente
         g2d.setColor(new Color(0, 0, 0, 0));
         g2d.fillRect(0, 0, GRID, GRID);
         
-        // Cuerpo de la moto
         GradientPaint gp = new GradientPaint(0, 15, new Color(220, 20, 60), 0, 25, new Color(178, 34, 34));
         g2d.setPaint(gp);
         g2d.fillRoundRect(5, 15, 30, 10, 8, 8);
         
-        // Ruedas
         g2d.setColor(new Color(40, 40, 40));
         g2d.fillOval(8, 8, 8, 8);
         g2d.fillOval(24, 8, 8, 8);
@@ -139,11 +136,9 @@ public class PanelMoto extends JPanel {
         g2d.drawOval(8, 8, 8, 8);
         g2d.drawOval(24, 8, 8, 8);
         
-        // Asiento azul
         g2d.setColor(new Color(30, 144, 255));
         g2d.fillRoundRect(15, 10, 10, 5, 4, 4);
         
-        // Manubrio
         g2d.setColor(Color.BLACK);
         g2d.fillRect(30, 12, 5, 2);
         
@@ -157,13 +152,11 @@ public class PanelMoto extends JPanel {
         
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         
-        // Fondo con borde
         g2d.setColor(color.darker());
         g2d.fillRoundRect(2, 2, GRID-4, GRID-4, 8, 8);
         g2d.setColor(color);
         g2d.fillRoundRect(4, 4, GRID-8, GRID-8, 6, 6);
         
-        // Texto centrado
         g2d.setColor(Color.WHITE);
         g2d.setFont(new Font("Arial", Font.BOLD, 10));
         FontMetrics fm = g2d.getFontMetrics();
@@ -178,17 +171,15 @@ public class PanelMoto extends JPanel {
 
     private void createDefaultObstacles() {
         obstacles.clear();
-
-        // Obstáculos ajustados al nuevo tamaño del grid
         obstacles.add(new Obstacle(6, 4, ObType.ROCK));
         obstacles.add(new Obstacle(8, 6, ObType.LOG));
         obstacles.add(new Obstacle(10, 10, ObType.TREE));
         obstacles.add(new Obstacle(15, 3, ObType.ROCK));
         obstacles.add(new Obstacle(4, 12, ObType.TREE));
         obstacles.add(new Obstacle(12, 8, ObType.LOG));
-        obstacles.add(new Obstacle(16, 12, ObType.LOG)); // Ajustado: estaba en 19
-        obstacles.add(new Obstacle(14, 5, ObType.LOG));  // Ajustado: estaba en 16
-        obstacles.add(new Obstacle(2, 15, ObType.ROCK)); // Ajustado: estaba en 16
+        obstacles.add(new Obstacle(16, 12, ObType.LOG));
+        obstacles.add(new Obstacle(14, 5, ObType.LOG));
+        obstacles.add(new Obstacle(2, 15, ObType.ROCK));
     }
 
     // EJECUCIÓN COMANDOS
@@ -200,6 +191,14 @@ public class PanelMoto extends JPanel {
             ticker.start();
         }
 
+        // Generar tripletas
+        List<String> tripletas = generateTriplets(commands);
+        
+        if (tripletsConsumer != null) {
+            tripletsConsumer.accept(tripletas);
+        }
+
+        // Ejecutar comandos
         for (Command c : commands) {
             switch (c.type) {
                 case MOVE -> addMoveSteps(c.value);
@@ -221,10 +220,55 @@ public class PanelMoto extends JPanel {
             notifier.accept("✔ Comandos listos para ejecutarse");
     }
 
+    private List<String> generateTriplets(List<Command> commands) {
+        List<String> tripletas = new ArrayList<>();
+        int lineNumber = 1;
+        int blockCounter = 1;
+        
+        for (Command c : commands) {
+            switch (c.type) {
+                case MOVE -> {
+                    tripletas.add("(" + lineNumber + ") (MOVER, -, " + c.value + ")");
+                    lineNumber++;
+                }
+                case TURN -> {
+                    String direction = c.dir.equalsIgnoreCase("derecha") ? "DERECHA" : "IZQUIERDA";
+                    tripletas.add("(" + lineNumber + ") (GIRAR, -, " + direction + ")");
+                    lineNumber++;
+                }
+                case REPEAT -> {
+                    String blockName = "BLOQUE" + blockCounter;
+                    blockCounter++;
+                    
+                    tripletas.add("(" + lineNumber + ") (REPETIR, " + c.value + ", " + blockName + ")");
+                    lineNumber++;
+                    
+                    tripletas.add("(" + lineNumber + ") (ETQ, " + blockName + ", -)");
+                    lineNumber++;
+                    
+                    for (Command sc : c.body) {
+                        if (sc.type == Command.Type.MOVE) {
+                            tripletas.add("(" + lineNumber + ") (MOVER, -, " + sc.value + ")");
+                        } else if (sc.type == Command.Type.TURN) {
+                            String scDirection = sc.dir.equalsIgnoreCase("derecha") ? "DERECHA" : "IZQUIERDA";
+                            tripletas.add("(" + lineNumber + ") (GIRAR, -, " + scDirection + ")");
+                        }
+                        lineNumber++;
+                    }
+                    
+                    tripletas.add("(" + lineNumber + ") (FIN_REPETIR, -, " + blockName + ")");
+                    lineNumber++;
+                }
+            }
+        }
+        
+        return tripletas;
+    }
+
     public void resetWorld() {
         col = 2;
         row = 2;
-        orient = 0;
+        orient = 1; // Reiniciar a derecha (eje X positivo)
         px = col * GRID;
         py = row * GRID;
         actions.clear();
@@ -232,17 +276,17 @@ public class PanelMoto extends JPanel {
         repaint();
     }
 
-    // MOVIMIENTO
+    // MOVIMIENTO CORREGIDO - SISTEMA DE COORDENADAS CORREGIDO
     private void addMoveSteps(int cells) {
         for (int s = 0; s < cells; s++) {
             actions.add(() -> {
                 int tcol = col, trow = row;
 
                 switch (orient) {
-                    case 0 -> trow++;   // ARRIBA
-                    case 1 -> tcol++;   // DERECHA
-                    case 2 -> trow--;   // ABAJO
-                    case 3 -> tcol--;   // IZQUIERDA
+                    case 0 -> trow++;   // ARRIBA (Y positivo) - CORREGIDO
+                    case 1 -> tcol++;   // DERECHA (X positivo) - FRENTE
+                    case 2 -> trow--;   // ABAJO (Y negativo) - CORREGIDO
+                    case 3 -> tcol--;   // IZQUIERDA (X negativo)
                 }
 
                 if (isBlocked(tcol, trow)) {
@@ -252,23 +296,22 @@ public class PanelMoto extends JPanel {
             });
 
             for (int step = 0; step < GRID; step += 4) {
-                final int currentStep = step;
                 actions.add(() -> {
                     switch (orient) {
-                        case 0 -> py += 4;
-                        case 1 -> px += 4;
-                        case 2 -> py -= 4;
-                        case 3 -> px -= 4;
+                        case 0 -> py -= 4; // ARRIBA (py disminuye porque Y crece hacia abajo)
+                        case 1 -> px += 4; // DERECHA - FRENTE
+                        case 2 -> py += 4; // ABAJO (py aumenta porque Y crece hacia abajo)
+                        case 3 -> px -= 4; // IZQUIERDA
                     }
                 });
             }
 
             actions.add(() -> {
                 switch (orient) {
-                    case 0 -> row++;
-                    case 1 -> col++;
-                    case 2 -> row--;
-                    case 3 -> col--;
+                    case 0 -> row++; // ARRIBA (Y aumenta)
+                    case 1 -> col++; // DERECHA - FRENTE (X aumenta)
+                    case 2 -> row--; // ABAJO (Y disminuye) - CORREGIDO
+                    case 3 -> col--; // IZQUIERDA (X disminuye)
                 }
                 px = col * GRID;
                 py = row * GRID;
@@ -276,6 +319,7 @@ public class PanelMoto extends JPanel {
         }
     }
 
+    // GIROS CORREGIDOS
     private void addTurnSteps(String dir) {
         actions.add(() -> {
             try { Thread.sleep(100); } catch (InterruptedException e) {}
@@ -283,9 +327,11 @@ public class PanelMoto extends JPanel {
         
         actions.add(() -> {
             if (dir.equalsIgnoreCase("derecha")) {
-                orient = (orient + 1) % 4;
-            } else {
+                // Giro a la derecha: sentido antihorario
                 orient = (orient + 3) % 4;
+            } else {
+                // Giro a la izquierda: sentido horario
+                orient = (orient + 1) % 4;
             }
         });
     }
@@ -307,32 +353,30 @@ public class PanelMoto extends JPanel {
         return false;
     }
 
-    // DIBUJADO CORREGIDO - NÚMEROS VISIBLES
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2d = (Graphics2D) g;
         
-        // Mejorar calidad de renderizado
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2d.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        int marginLeft = 40;  // Espacio para números Y
-        int marginBottom = 40; // Espacio para números X
-        int baseY = ROWS * GRID; // Altura del área del grid
-        int totalHeight = baseY + marginBottom; // Altura total del panel
+        int marginLeft = 40;
+        int marginBottom = 40;
+        int baseY = ROWS * GRID;
+        int totalHeight = baseY + marginBottom;
 
-        // Fondo con gradiente suave
+        // Fondo
         GradientPaint bgGradient = new GradientPaint(0, 0, new Color(245, 245, 245), 
                                                     getWidth(), getHeight(), Color.WHITE);
         g2d.setPaint(bgGradient);
         g2d.fillRect(0, 0, getWidth(), getHeight());
 
-        // Área del grid con fondo ligeramente diferente
+        // Área del grid
         g2d.setColor(new Color(250, 250, 250));
         g2d.fillRect(marginLeft, 0, COLS * GRID, baseY);
 
-        // Cuadrícula más estética
+        // Cuadrícula
         g2d.setColor(GRID_COLOR);
         g2d.setStroke(new BasicStroke(1.0f));
         
@@ -343,13 +387,13 @@ public class PanelMoto extends JPanel {
             g2d.drawLine(marginLeft, y, marginLeft + COLS * GRID, y);
         }
 
-        // Líneas de ejes más destacadas
+        // Ejes
         g2d.setColor(AXIS_COLOR);
         g2d.setStroke(new BasicStroke(2.0f));
-        g2d.drawLine(marginLeft, 0, marginLeft, baseY); // Eje Y
-        g2d.drawLine(marginLeft, baseY, marginLeft + COLS * GRID, baseY); // Eje X
+        g2d.drawLine(marginLeft, 0, marginLeft, baseY);
+        g2d.drawLine(marginLeft, baseY, marginLeft + COLS * GRID, baseY);
 
-        // Obstáculos con borde
+        // Obstáculos
         for (Obstacle o : obstacles) {
             int drawX = marginLeft + o.col * GRID;
             int drawY = baseY - (o.row * GRID) - GRID;
@@ -364,30 +408,24 @@ public class PanelMoto extends JPanel {
                 g2d.drawImage(img, drawX, drawY, GRID, GRID, this);
             }
             
-            // Borde de obstáculo
             g2d.setColor(OBSTACLE_BORDER);
             g2d.drawRect(drawX, drawY, GRID, GRID);
         }
 
-        // NUMERACIÓN CORREGIDA - TODOS LOS NÚMEROS VISIBLES
+        // Numeración
         g2d.setColor(AXIS_COLOR);
         g2d.setFont(new Font("Arial", Font.BOLD, 12));
 
-        // Numeración Eje X (abajo) - 0, 1, 2, 3... hasta COLS-1
         for (int x = 0; x < COLS; x++) {
             String num = String.valueOf(x);
             FontMetrics fm = g2d.getFontMetrics();
             int textWidth = fm.stringWidth(num);
             int posX = marginLeft + x * GRID + (GRID - textWidth) / 2;
-            int posY = baseY + 20; // Posición corregida - dentro del área visible
-            
+            int posY = baseY + 20;
             g2d.drawString(num, posX, posY);
-            
-            // Marcador en el eje
             g2d.fillRect(marginLeft + x * GRID, baseY - 3, 1, 6);
         }
 
-        // Numeración Eje Y (izquierda) - 0, 1, 2, 3... hasta ROWS-1
         for (int y = 0; y < ROWS; y++) {
             String num = String.valueOf(y);
             FontMetrics fm = g2d.getFontMetrics();
@@ -395,10 +433,7 @@ public class PanelMoto extends JPanel {
             int textHeight = fm.getHeight();
             int posX = marginLeft - textWidth - 8;
             int posY = baseY - (y * GRID) - (GRID / 2) + (textHeight / 3);
-            
             g2d.drawString(num, posX, posY);
-            
-            // Marcador en el eje
             g2d.fillRect(marginLeft - 3, baseY - (y * GRID), 6, 1);
         }
 
@@ -416,32 +451,39 @@ public class PanelMoto extends JPanel {
             int centerX = motoX + GRID / 2;
             int centerY = motoY + GRID / 2;
 
+            // ROTACIÓN CORREGIDA
             double angle = switch (orient) {
-                case 0 -> Math.toRadians(0);    // ARRIBA
-                case 1 -> Math.toRadians(90);   // DERECHA
-                case 2 -> Math.toRadians(180);  // ABAJO
-                default -> Math.toRadians(270); // IZQUIERDA
+                case 0 -> Math.toRadians(0);    // ARRIBA: 0°
+                case 1 -> Math.toRadians(90);   // DERECHA: 90° - FRENTE
+                case 2 -> Math.toRadians(180);  // ABAJO: 180°
+                default -> Math.toRadians(270); // IZQUIERDA: 270°
             };
 
             motoG2d.rotate(angle, centerX, centerY);
             motoG2d.drawImage(motoImg, motoX, motoY, GRID, GRID, this);
             motoG2d.dispose();
         } else {
-            // Marcador de posición mejorado
             GradientPaint motoGradient = new GradientPaint(motoX, motoY, Color.RED, 
                                                          motoX + GRID, motoY + GRID, Color.ORANGE);
             g2d.setPaint(motoGradient);
             g2d.fillRoundRect(motoX, motoY, GRID, GRID, 10, 10);
             g2d.setColor(Color.WHITE);
             g2d.setFont(new Font("Arial", Font.BOLD, 12));
-            g2d.drawString("MOTO", motoX + 8, motoY + 22);
+            
+            // Indicador de dirección en el marcador por defecto
+            String dirSymbol = switch (orient) {
+                case 0 -> "↑";
+                case 1 -> "→";
+                case 2 -> "↓";
+                default -> "←";
+            };
+            g2d.drawString(dirSymbol + "MOTO", motoX + 5, motoY + 22);
         }
 
-        // Borde de la moto
         g2d.setColor(Color.BLACK);
         g2d.drawRect(motoX, motoY, GRID, GRID);
 
-        // PANEL DE INFORMACIÓN MEJORADO
+        // PANEL DE INFORMACIÓN DE LA MOTO
         int infoX = marginLeft + COLS * GRID + 10;
         int infoY = 20;
         
@@ -464,10 +506,10 @@ public class PanelMoto extends JPanel {
 
     private String orientToText() {
         return switch (orient) {
-            case 0 -> "↑ Arriba";
-            case 1 -> "→ Derecha";
-            case 2 -> "↓ Abajo";
-            default -> "← Izquierda";
+            case 0 -> "↑ Arriba (Y+)";
+            case 1 -> "→ Derecha (X+)";
+            case 2 -> "↓ Abajo (Y-)";
+            default -> "← Izquierda (X-)";
         };
     }
 

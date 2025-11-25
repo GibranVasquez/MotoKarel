@@ -5,6 +5,7 @@ import codigo.CommandParser;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.List;
 import java.util.function.Consumer;
 
 public class MainWindow extends JFrame {
@@ -80,16 +81,23 @@ public class MainWindow extends JFrame {
 
         // -------------------------------------------
        
-       // PANEL DERECHO (Simulación + botones)
-JPanel right = new JPanel(new BorderLayout());
+        // PANEL DERECHO (Simulación + botones)
+        JPanel right = new JPanel(new BorderLayout());
+        right.setBorder(BorderFactory.createEmptyBorder(2, 100, 2, 2));
 
-// Aumentamos el margen izquierdo para recorrer todo el panel a la derecha.
-// Puedes ajustar el valor 80 → más grande o más pequeño según lo que necesites.
-right.setBorder(BorderFactory.createEmptyBorder(2, 100, 2, 2));
-
-panelMoto = new PanelMoto();
-right.add(panelMoto, BorderLayout.CENTER);
-
+        panelMoto = new PanelMoto();
+        
+        // Configurar el consumidor de tripletas
+        panelMoto.setTripletsConsumer(triplets -> {
+            SwingUtilities.invokeLater(() -> {
+                tripletsArea.setText("");
+                for (String triplete : triplets) {
+                    tripletsArea.append(triplete + "\n");
+                }
+            });
+        });
+        
+        right.add(panelMoto, BorderLayout.CENTER);
 
         // ----- Botones -----
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 8));
