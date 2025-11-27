@@ -18,7 +18,7 @@ public class PanelMoto extends JPanel {
 
     private int col = 2;
     private int row = 2;
-    private int orient = 1; // 1 = Derecha (eje X positivo)
+    private int orient = 1; // 1 = Este (Derecha, X+)
 
     private double px = col * GRID;
     private double py = row * GRID;
@@ -182,44 +182,60 @@ public class PanelMoto extends JPanel {
         obstacles.add(new Obstacle(2, 15, ObType.ROCK));
     }
 
-    // EJECUCIÓN COMANDOS
-    public void runCommands(List<Command> commands, Consumer<String> notifier) {
+   // EJECUCIÓN COMANDOS - MODIFICADO PARA SEPARAR ANÁLISIS DE EJECUCIÓN
+    public void runCommands(List<Command> commands, Consumer<String> notifier, boolean ejecutar) {
         this.notifier = notifier;
-        actions.clear();
         
-        if (!ticker.isRunning()) {
-            ticker.start();
-        }
+        if (ejecutar) {
+            // Modo ejecución: ejecuta los comandos
+            actions.clear();
+            
+            if (!ticker.isRunning()) {
+                ticker.start();
+            }
 
+            // Ejecutar comandos
+            for (Command c : commands) {
+                switch (c.type) {
+                    case MOVE -> addMoveSteps(c.value);
+                    case TURN -> addTurnSteps(c.dir);
+                    case REPEAT -> {
+                        for (int i = 0; i < c.value; i++) {
+                            for (Command sc : c.body) {
+                                if (sc.type == Command.Type.MOVE)
+                                    addMoveSteps(sc.value);
+                                else if (sc.type == Command.Type.TURN)
+                                    addTurnSteps(sc.dir);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (notifier != null)
+                notifier.accept("✔ Comandos listos para ejecutarse");
+        } else {
+            // Modo análisis: solo genera tripletas
+            if (notifier != null)
+                notifier.accept("✔ Análisis completado - Tripletas generadas");
+        }
+    }
+
+    // MÉTODO SEPARADO SOLO PARA GENERAR TRIPLETAS (para el botón Analizar)
+    public void analizarComandos(List<Command> commands) {
         // Generar tripletas
         List<String> tripletas = generateTriplets(commands);
         
         if (tripletsConsumer != null) {
             tripletsConsumer.accept(tripletas);
         }
-
-        // Ejecutar comandos
-        for (Command c : commands) {
-            switch (c.type) {
-                case MOVE -> addMoveSteps(c.value);
-                case TURN -> addTurnSteps(c.dir);
-                case REPEAT -> {
-                    for (int i = 0; i < c.value; i++) {
-                        for (Command sc : c.body) {
-                            if (sc.type == Command.Type.MOVE)
-                                addMoveSteps(sc.value);
-                            else if (sc.type == Command.Type.TURN)
-                                addTurnSteps(sc.dir);
-                        }
-                    }
-                }
-            }
-        }
-
-        if (notifier != null)
-            notifier.accept("✔ Comandos listos para ejecutarse");
     }
 
+    // MÉTODO PARA EJECUTAR COMANDOS (para el botón Ejecutar)
+    public void ejecutarComandos(List<Command> commands, Consumer<String> notifier) {
+        runCommands(commands, notifier, true);
+    }
+    
     private List<String> generateTriplets(List<Command> commands) {
         List<String> tripletas = new ArrayList<>();
         int lineNumber = 1;
@@ -268,7 +284,7 @@ public class PanelMoto extends JPanel {
     public void resetWorld() {
         col = 2;
         row = 2;
-        orient = 1; // Reiniciar a derecha (eje X positivo)
+        orient = 1; // Reiniciar a Este (X+)
         px = col * GRID;
         py = row * GRID;
         actions.clear();
@@ -276,73 +292,89 @@ public class PanelMoto extends JPanel {
         repaint();
     }
 
-    // MOVIMIENTO CORREGIDO - SISTEMA DE COORDENADAS CORREGIDO
+    // MOVIMIENTO - SISTEMA INVERTIDO (Y se convierte en X y viceversa)
     private void addMoveSteps(int cells) {
         for (int s = 0; s < cells; s++) {
+            // Verificación de colisión ANTES de mover
             actions.add(() -> {
                 int tcol = col, trow = row;
 
                 switch (orient) {
-                    case 0 -> trow++;   // ARRIBA (Y positivo) - CORREGIDO
-                    case 1 -> tcol++;   // DERECHA (X positivo) - FRENTE
-                    case 2 -> trow--;   // ABAJO (Y negativo) - CORREGIDO
-                    case 3 -> tcol--;   // IZQUIERDA (X negativo)
+                    case 0 -> tcol--;   // NORTE (X-)
+                    case 1 -> trow++;   // ESTE (Y+)
+                    case 2 -> tcol++;   // SUR (X+)
+                    case 3 -> trow--;   // OESTE (Y-)
                 }
 
                 if (isBlocked(tcol, trow)) {
                     actions.clear();
+                    if (notifier != null) notifier.accept("❌ Movimiento bloqueado en (" + tcol + "," + trow + ")");
                     return;
                 }
             });
 
+            // Animación del movimiento
             for (int step = 0; step < GRID; step += 4) {
                 actions.add(() -> {
                     switch (orient) {
-                        case 0 -> py -= 4; // ARRIBA (py disminuye porque Y crece hacia abajo)
-                        case 1 -> px += 4; // DERECHA - FRENTE
-                        case 2 -> py += 4; // ABAJO (py aumenta porque Y crece hacia abajo)
-                        case 3 -> px -= 4; // IZQUIERDA
+                        case 0 -> px -= 4; // NORTE (X-)
+                        case 1 -> py += 4; // ESTE (Y+)
+                        case 2 -> px += 4; // SUR (X+)
+                        case 3 -> py -= 4; // OESTE (Y-)
                     }
                 });
             }
 
+            // Actualización de posición después del movimiento
             actions.add(() -> {
                 switch (orient) {
-                    case 0 -> row++; // ARRIBA (Y aumenta)
-                    case 1 -> col++; // DERECHA - FRENTE (X aumenta)
-                    case 2 -> row--; // ABAJO (Y disminuye) - CORREGIDO
-                    case 3 -> col--; // IZQUIERDA (X disminuye)
+                    case 0 -> col--; // NORTE (X-)
+                    case 1 -> row++; // ESTE (Y+)
+                    case 2 -> col++; // SUR (X+)
+                    case 3 -> row--; // OESTE (Y-)
                 }
                 px = col * GRID;
                 py = row * GRID;
+                
+                if (notifier != null) 
+                    notifier.accept("✓ Movido a (" + col + "," + row + ") - Dirección: " + orientToText());
             });
         }
     }
 
-    // GIROS CORREGIDOS
+    // GIROS CORREGIDOS - SENTIDO HORARIO/ANTIHORARIO
     private void addTurnSteps(String dir) {
+        // Pausa para la animación
         actions.add(() -> {
-            try { Thread.sleep(100); } catch (InterruptedException e) {}
+            try { Thread.sleep(300); } catch (InterruptedException e) {}
         });
         
+        // Ejecutar el giro
         actions.add(() -> {
+            int oldOrient = orient;
             if (dir.equalsIgnoreCase("derecha")) {
-                // Giro a la derecha: sentido antihorario
-                orient = (orient + 3) % 4;
-            } else {
-                // Giro a la izquierda: sentido horario
+                // Giro a la derecha: sentido horario
                 orient = (orient + 1) % 4;
+                if (notifier != null) 
+                    notifier.accept("✓ Girado derecha: " + orientToText(oldOrient) + " → " + orientToText());
+            } else {
+                // Giro a la izquierda: sentido antihorario  
+                orient = (orient + 3) % 4;
+                if (notifier != null) 
+                    notifier.accept("✓ Girado izquierda: " + orientToText(oldOrient) + " → " + orientToText());
             }
         });
     }
 
     private boolean isBlocked(int c, int r) {
+        // Verificar límites del mundo
         if (c < 0 || r < 0 || c >= COLS || r >= ROWS) {
             if (notifier != null)
                 notifier.accept("❌ Límite del mundo en (" + c + "," + r + ")");
             return true;
         }
 
+        // Verificar obstáculos
         for (Obstacle o : obstacles) {
             if (o.col == c && o.row == r) {
                 if (notifier != null)
@@ -451,12 +483,13 @@ public class PanelMoto extends JPanel {
             int centerX = motoX + GRID / 2;
             int centerY = motoY + GRID / 2;
 
-            // ROTACIÓN CORREGIDA
+            // ROTACIÓN CORREGIDA - SISTEMA INVERTIDO
             double angle = switch (orient) {
-                case 0 -> Math.toRadians(0);    // ARRIBA: 0°
-                case 1 -> Math.toRadians(90);   // DERECHA: 90° - FRENTE
-                case 2 -> Math.toRadians(180);  // ABAJO: 180°
-                default -> Math.toRadians(270); // IZQUIERDA: 270°
+                case 0 -> Math.toRadians(180);  // NORTE: 180° (hacia X negativo)
+                case 1 -> Math.toRadians(-90);  // ESTE: -90° (hacia Y positivo)
+                case 2 -> Math.toRadians(0);    // SUR: 0° (hacia X positivo)
+                case 3 -> Math.toRadians(90);   // OESTE: 90° (hacia Y negativo)
+                default -> Math.toRadians(0);
             };
 
             motoG2d.rotate(angle, centerX, centerY);
@@ -470,7 +503,6 @@ public class PanelMoto extends JPanel {
             g2d.setColor(Color.WHITE);
             g2d.setFont(new Font("Arial", Font.BOLD, 12));
             
-            // Indicador de dirección en el marcador por defecto
             String dirSymbol = switch (orient) {
                 case 0 -> "↑";
                 case 1 -> "→";
@@ -500,16 +532,25 @@ public class PanelMoto extends JPanel {
         g2d.setFont(new Font("Arial", Font.PLAIN, 12));
         g2d.drawString("Posición: X = " + col + ", Y = " + row, infoX, infoY + 35);
         g2d.drawString("Dirección: " + orientToText(), infoX, infoY + 50);
-        g2d.drawString("Orientación: " + orient, infoX, infoY + 65);
-        g2d.drawString("Acciones: " + actions.size(), infoX, infoY + 80);
+        g2d.drawString("Acciones pendientes: " + actions.size(), infoX, infoY + 80);
     }
 
     private String orientToText() {
         return switch (orient) {
-            case 0 -> "↑ Arriba (Y+)";
-            case 1 -> "→ Derecha (X+)";
-            case 2 -> "↓ Abajo (Y-)";
-            default -> "← Izquierda (X-)";
+            case 0 -> "↑ Norte (X-)";
+            case 1 -> "→ Este (Y+)";
+            case 2 -> "↓ Sur (X+)";
+            default -> "← Oeste (Y-)";
+        };
+    }
+
+    // Método sobrecargado para mostrar cambios de orientación
+    private String orientToText(int orientation) {
+        return switch (orientation) {
+            case 0 -> "↑ Norte (X-)";
+            case 1 -> "→ Este (Y+)";
+            case 2 -> "↓ Sur (X+)";
+            default -> "← Oeste (Y-)";
         };
     }
 
@@ -524,5 +565,17 @@ public class PanelMoto extends JPanel {
     public void stopExecution() {
         actions.clear();
         ticker.stop();
+        if (notifier != null) notifier.accept("⏹ Ejecución detenida");
+    }
+
+    // MÉTODO PARA ESTABLECER POSICIÓN MANUALMENTE (para testing)
+    public void setPosition(int x, int y, int direction) {
+        this.col = x;
+        this.row = y;
+        this.orient = direction;
+        this.px = col * GRID;
+        this.py = row * GRID;
+        repaint();
+        if (notifier != null) notifier.accept("✓ Posición establecida: (" + x + "," + y + ") - " + orientToText());
     }
 }

@@ -1,4 +1,4 @@
-package codigo;
+package analizadores;
 
 import java.util.ArrayList;
 import java.util.List;
