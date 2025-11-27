@@ -4,7 +4,7 @@
 // Wed Jun 04 15:43:42 CST 2025
 //----------------------------------------------------
 
-package anaizadores;
+package analizadores;
 
 /** CUP generated class containing symbol constants. */
 public class sym {

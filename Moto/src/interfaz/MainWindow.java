@@ -161,7 +161,7 @@ public class MainWindow extends JFrame {
             Consumer<String> notifier =
                     msg -> SwingUtilities.invokeLater(() -> consoleArea.append(msg + "\n"));
 
-            panelMoto.runCommands(res.commands, notifier, rootPaneCheckingEnabled);
+            panelMoto.runCommands(res.commands, notifier);
 
             consoleArea.append("✔ Simulación iniciada.\n");
         } catch (CommandParser.ParseException ex) {
